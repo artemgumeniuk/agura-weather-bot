@@ -5,6 +5,7 @@ from app.bot import (
     NAV_CALLBACK_PREFIX,
     OUTFIT_CALLBACK_PREFIX,
     build_after_city_keyboard,
+    build_after_forecast_keyboard,
     build_forecast_keyboard,
     build_now_actions_keyboard,
     build_outfit_keyboard,
@@ -88,3 +89,11 @@ def test_build_forecast_keyboard_options():
         f"{FORECAST_CALLBACK_PREFIX}pick:3",
         f"{FORECAST_CALLBACK_PREFIX}close",
     ]
+
+
+def test_build_after_forecast_keyboard_has_weather_now():
+    keyboard = build_after_forecast_keyboard().inline_keyboard
+    assert len(keyboard) == 1
+    assert len(keyboard[0]) == 1
+    assert keyboard[0][0].text == "Weather now"
+    assert keyboard[0][0].callback_data == f"{NAV_CALLBACK_PREFIX}now"

@@ -104,6 +104,12 @@ def build_forecast_keyboard() -> InlineKeyboardMarkup:
     )
 
 
+def build_after_forecast_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton("Weather now", callback_data=f"{NAV_CALLBACK_PREFIX}now")]]
+    )
+
+
 def build_rate_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
@@ -211,7 +217,7 @@ def build_bot() -> BotRuntime | None:
                 return
             await logic.refresh_user_data(session, user)
             msg = logic.build_forecast_digest(session, user, days)
-            await reply_fn(msg)
+            await reply_fn(msg, reply_markup=build_after_forecast_keyboard())
 
     async def metrics_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if unauthorized(update):
@@ -505,7 +511,7 @@ def build_bot() -> BotRuntime | None:
                     return
                 await logic.refresh_user_data(session, user)
                 msg = logic.build_forecast_digest(session, user, days)
-                await query.edit_message_text(msg)
+                await query.edit_message_text(msg, reply_markup=build_after_forecast_keyboard())
         except Exception as exc:
             await query.edit_message_text(f"Failed to build forecast: {exc}")
 
