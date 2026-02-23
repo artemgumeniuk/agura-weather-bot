@@ -122,16 +122,22 @@ class OpenMeteoProvider:
         precip_sum = daily.get("precipitation_sum") or []
         rh_mean = daily.get("relative_humidity_2m_mean") or []
 
-        n = min(len(times), len(t_mean), len(ws_mean), len(precip_sum), len(rh_mean))
+        # Some Open-Meteo archive responses may omit optional series (for example humidity).
+        # Do not collapse to zero rows when an optional series is missing.
+        n = len(times)
         out: list[DailyHistoryPoint] = []
         for i in range(n):
+            t_val = float(t_mean[i]) if i < len(t_mean) and t_mean[i] is not None else None
+            ws_val = (float(ws_mean[i]) / 3.6) if i < len(ws_mean) and ws_mean[i] is not None else None
+            p_val = float(precip_sum[i]) if i < len(precip_sum) and precip_sum[i] is not None else None
+            rh_val = float(rh_mean[i]) if i < len(rh_mean) and rh_mean[i] is not None else None
             out.append(
                 DailyHistoryPoint(
                     date=date.fromisoformat(str(times[i])),
-                    t_mean=float(t_mean[i]) if t_mean[i] is not None else None,
-                    ws_mean=(float(ws_mean[i]) / 3.6) if ws_mean[i] is not None else None,  # km/h -> m/s
-                    precip_sum=float(precip_sum[i]) if precip_sum[i] is not None else None,
-                    rh_mean=float(rh_mean[i]) if rh_mean[i] is not None else None,
+                    t_mean=t_val,
+                    ws_mean=ws_val,  # km/h -> m/s
+                    precip_sum=p_val,
+                    rh_mean=rh_val,
                 )
             )
         return out
