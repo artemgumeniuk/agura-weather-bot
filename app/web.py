@@ -63,7 +63,7 @@ async def web_app(request: Request, session: Session = Depends(get_session)):
         "now_summary": None,
         "error": None,
     }
-    if settings.web_stateless_mode:
+    if settings.stateless_runtime_enabled:
         return templates.TemplateResponse(request, "web_app.html", context)
 
     user = _single_user(session)
@@ -90,7 +90,7 @@ async def web_set_city(
         return _render_city_form(request, "Please enter a city name.", status_code=400)
 
     try:
-        if settings.web_stateless_mode:
+        if settings.stateless_runtime_enabled:
             city_name, now_summary = await logic.build_now_summary_for_city(city_text)
             return templates.TemplateResponse(
                 request,
@@ -114,7 +114,7 @@ async def web_set_city(
 
 @router.get("/web/now", response_class=HTMLResponse)
 async def web_now(request: Request, city: str | None = Query(default=None), session: Session = Depends(get_session)):
-    if settings.web_stateless_mode:
+    if settings.stateless_runtime_enabled:
         city_text = (city or "").strip()
         if not city_text:
             return _render_city_form(request, "Set city first.", status_code=400)
@@ -145,7 +145,7 @@ async def web_now(request: Request, city: str | None = Query(default=None), sess
 
 @router.get("/web/stats", response_class=HTMLResponse)
 async def web_stats(request: Request, city: str | None = Query(default=None), session: Session = Depends(get_session)):
-    if settings.web_stateless_mode:
+    if settings.stateless_runtime_enabled:
         city_text = (city or "").strip()
         if not city_text:
             return _render_city_form(request, "Set city first.", status_code=400)
@@ -178,7 +178,7 @@ async def web_stats(request: Request, city: str | None = Query(default=None), se
 async def web_forecast_options(
     request: Request, city: str | None = Query(default=None), session: Session = Depends(get_session)
 ):
-    if settings.web_stateless_mode:
+    if settings.stateless_runtime_enabled:
         city_text = (city or "").strip()
         if not city_text:
             return _render_city_form(request, "Set city first.", status_code=400)
@@ -200,7 +200,7 @@ async def web_forecast(
     if days not in {1, 3}:
         raise HTTPException(status_code=400, detail="days must be 1 or 3")
 
-    if settings.web_stateless_mode:
+    if settings.stateless_runtime_enabled:
         city_text = (city or "").strip()
         if not city_text:
             return _render_city_form(request, "Set city first.", status_code=400)
@@ -233,7 +233,7 @@ async def web_forecast(
 async def web_outfit_options(
     request: Request, city: str | None = Query(default=None), session: Session = Depends(get_session)
 ):
-    if settings.web_stateless_mode:
+    if settings.stateless_runtime_enabled:
         city_text = (city or "").strip()
         if not city_text:
             return _render_city_form(request, "Set city first.", status_code=400)
@@ -258,7 +258,7 @@ async def web_outfit(
     if activity not in {"walking", "biking"}:
         raise HTTPException(status_code=400, detail="activity must be walking or biking")
 
-    if settings.web_stateless_mode:
+    if settings.stateless_runtime_enabled:
         city_text = (city or "").strip()
         if not city_text:
             return _render_city_form(request, "Set city first.", status_code=400)
@@ -289,7 +289,7 @@ async def web_outfit(
 
 @router.post("/web/location", response_class=HTMLResponse)
 async def web_location(request: Request, session: Session = Depends(get_session)):
-    if settings.web_stateless_mode:
+    if settings.stateless_runtime_enabled:
         return _render_city_form(request, "Send a city name to check weather.")
     user = _single_user(session)
     if user is None:

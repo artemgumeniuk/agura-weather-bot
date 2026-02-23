@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if not settings.web_stateless_mode:
+    stateless_mode = settings.stateless_runtime_enabled
+    if not stateless_mode:
         init_db()
     stale_logic_file = Path(__file__).with_name("app_logic.py")
     if stale_logic_file.exists():
@@ -26,7 +27,7 @@ async def lifespan(app: FastAPI):
 
     bot_runtime = None
     scheduler_runtime = None
-    if not settings.web_stateless_mode:
+    if not stateless_mode:
         from app.bot import build_bot
         from app.scheduler import SchedulerRuntime
 
@@ -64,7 +65,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Weather Dashboard Bot", lifespan=lifespan)
 app.include_router(web_router)
-if not settings.web_stateless_mode:
+if not settings.stateless_runtime_enabled:
     from app.api import router as api_router
 
     app.include_router(api_router)

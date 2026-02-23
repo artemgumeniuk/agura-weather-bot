@@ -1,3 +1,5 @@
+import os
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -33,6 +35,13 @@ class Settings(BaseSettings):
             return int(self.telegram_allowed_user_id)
         except (TypeError, ValueError):
             return None
+
+    @property
+    def stateless_runtime_enabled(self) -> bool:
+        if self.web_stateless_mode:
+            return True
+        # Vercel serverless should default to stateless behavior unless explicitly overridden.
+        return os.getenv("VERCEL") == "1"
 
 
 settings = Settings()
