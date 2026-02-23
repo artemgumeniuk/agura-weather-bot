@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ title }}</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #f3efe5;
+      --card: #fffdf7;
+      --ink: #1e1f1d;
+      --accent: #1f7a8c;
+      --warn: #b22222;
+      --good: #2f6f3e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      background: radial-gradient(circle at 20% 20%, #fff7e6, var(--bg));
+      color: var(--ink);
+      padding: 24px;
+    }
+    .wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 16px; }
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 16px;
+      border: 1px solid #e8deca;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+    }
+    h1 { margin: 0; font-size: 1.6rem; }
+    .muted { opacity: 0.75; }
+    .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+    .metric { padding: 12px; border-radius: 12px; background: #f7f2e8; }
+    .value { font-size: 1.4rem; font-weight: 700; }
+    .warn { color: var(--warn); }
+    .good { color: var(--good); }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Today vs History Dashboard</h1>
+      {% if city %}<div class="muted">{{ city }}</div>{% endif %}
+    </div>
+
+    {% if error %}
+      <div class="card warn">{{ error }}</div>
+    {% endif %}
+
+    {% if anomaly %}
+      <div class="card">
+        <div class="grid">
+          <div class="metric"><div>Temp anomaly</div><div class="value">{{ '%.1f'|format(anomaly.temp_anomaly_c) }}°C</div></div>
+          <div class="metric"><div>Temp percentile</div><div class="value">{{ '%.0f'|format(anomaly.temp_percentile) }}%</div></div>
+          <div class="metric"><div>Wet streak</div><div class="value">{{ anomaly.precip_streak_days }} days</div></div>
+          <div class="metric"><div>Weirdness</div><div class="value">{{ '%.2f'|format(anomaly.weirdness_score) }}</div></div>
+        </div>
+        <p class="muted">{{ anomaly.confidence_note }}</p>
+        <canvas id="zchart" height="80"></canvas>
+      </div>
+    {% endif %}
+
+    {% if outfit %}
+      <div class="card">
+        <h2>Outfit Now</h2>
+        <ul>
+          <li><strong>Base:</strong> {{ outfit.base_layer }}</li>
+          <li><strong>Mid:</strong> {{ outfit.mid_layer }}</li>
+          <li><strong>Shell:</strong> {{ outfit.shell }}</li>
+          <li><strong>Shoes:</strong> {{ outfit.shoes }}</li>
+          <li><strong>Extras:</strong> {{ outfit.extras | join(', ') if outfit.extras else 'none' }}</li>
+        </ul>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if anomaly %}
+  <script>
+    new Chart(document.getElementById('zchart'), {
+      type: 'bar',
+      data: {
+        labels: ['z_temp', 'z_wind', 'z_precip'],
+        datasets: [{
+          label: 'Z-score',
+          data: [{{ anomaly.z_temp }}, {{ anomaly.z_wind }}, {{ anomaly.z_precip }}],
+          backgroundColor: ['#1f7a8c', '#3a86ff', '#ff6b6b']
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+  </script>
+  {% endif %}
+</body>
+</html>

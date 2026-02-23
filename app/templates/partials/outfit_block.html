@@ -1,0 +1,13 @@
+<div class="card">
+  <div class="card-head">
+    <h3 class="card-title">Outfit ({{ minutes }} min, {{ activity }})</h3>
+    <span class="chip">Recommendation</span>
+  </div>
+  <ul class="panel-list">
+    <li><strong>👕 Base:</strong> {{ advice.base_layer }}</li>
+    <li><strong>🧶 Mid:</strong> {{ advice.mid_layer }}</li>
+    <li><strong>🧥 Shell:</strong> {{ advice.shell }}</li>
+    <li><strong>👟 Shoes:</strong> {{ advice.shoes }}</li>
+    <li><strong>🧤 Extras:</strong> {{ advice.extras | join(', ') if advice.extras else 'none' }}</li>
+  </ul>
+</div>

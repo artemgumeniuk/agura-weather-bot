@@ -1,0 +1,11 @@
+<div class="card">
+  <div class="card-head">
+    <h3 class="card-title">Forecast Window</h3>
+    <span class="chip">Pick Range</span>
+  </div>
+  <p class="muted" style="margin-bottom: 12px;">Choose how far ahead you want the summary.</p>
+  <div class="btn-grid">
+    <button hx-get="/web/forecast?days=1" hx-target="#detail-panel" hx-swap="innerHTML">1 day</button>
+    <button hx-get="/web/forecast?days=3" hx-target="#detail-panel" hx-swap="innerHTML">3 days</button>
+  </div>
+</div>

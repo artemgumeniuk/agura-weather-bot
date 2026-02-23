@@ -1,0 +1,27 @@
+<div class="card subtle">
+  <div class="card-head">
+    <h2 class="card-title">Set City</h2>
+    <span class="chip">Step 1</span>
+  </div>
+  {% if message %}
+    <p class="muted" style="margin-bottom: 10px;">{{ message }}</p>
+  {% endif %}
+  <p class="muted" style="margin-bottom: 12px;">Choose your city to unlock live weather, quick outfit picks, and history stats.</p>
+  <form
+    method="post"
+    action="/web/set-city"
+    hx-post="/web/set-city"
+    hx-target="#app-panel"
+    hx-swap="innerHTML"
+    class="row"
+  >
+    <input
+      type="text"
+      name="city"
+      placeholder="Enter city (example: Gothenburg)"
+      required
+      class="field"
+    />
+    <button type="submit" class="btn-primary">Set city</button>
+  </form>
+</div>

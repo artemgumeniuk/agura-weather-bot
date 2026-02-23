@@ -1,0 +1,8 @@
+<div class="card">
+  <div class="card-head">
+    <h3 class="card-title">Something Went Wrong</h3>
+    <span class="chip" style="background:#fff3f3; border-color:#f0c6c6; color:#8f2b2b;">Error</span>
+  </div>
+  <p class="muted" style="margin-bottom: 12px;">{{ error }}</p>
+  <button hx-get="/web/now" hx-target="#app-panel" hx-swap="innerHTML">Reload now</button>
+</div>

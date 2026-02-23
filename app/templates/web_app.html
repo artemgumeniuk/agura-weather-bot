@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ title }}</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #eef3f9;
+      --ink: #10243d;
+      --muted: #5b708c;
+      --panel: #ffffff;
+      --line: #d5e2f2;
+      --accent: #0c8ce9;
+      --accent-strong: #076cc9;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --shadow: 0 18px 40px rgba(11, 49, 93, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(900px 500px at -15% -20%, #cfe4ff 0%, transparent 55%),
+        radial-gradient(900px 500px at 110% -25%, #c9f6e5 0%, transparent 58%),
+        linear-gradient(170deg, #f9fcff 0%, var(--bg) 48%, #eaf1f9 100%);
+      padding: 28px 16px 44px;
+    }
+
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, rgba(12, 140, 233, 0.11), rgba(12, 140, 233, 0.03));
+      border: 1px solid #cbe0f7;
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 22px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--accent);
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 800;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.6rem, 2.8vw, 2.1rem);
+      letter-spacing: -0.02em;
+    }
+
+    .hero p {
+      margin: 6px 0 0;
+      color: var(--muted);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .stack {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    .subtle {
+      background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .card-title {
+      margin: 0;
+      font-size: 1.06rem;
+      letter-spacing: -0.01em;
+    }
+
+    .chip {
+      border: 1px solid #cbe0f7;
+      background: #edf5ff;
+      color: #144985;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 0.74rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    button, .btn {
+      appearance: none;
+      border: 1px solid #c2d7ef;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(180deg, #ffffff 0%, #f2f8ff 100%);
+      color: #173b65;
+      font: inherit;
+      font-size: 0.92rem;
+      font-weight: 700;
+      padding: 9px 12px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    button:hover, .btn:hover {
+      transform: translateY(-1px);
+      border-color: #9fc3ea;
+      box-shadow: 0 8px 16px rgba(10, 57, 112, 0.12);
+    }
+
+    .btn-primary {
+      background: linear-gradient(180deg, var(--accent) 0%, var(--accent-strong) 100%);
+      border-color: #0b67c1;
+      color: #ffffff;
+    }
+
+    button[disabled], .btn[disabled] {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .mono {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: #173457;
+      line-height: 1.62;
+      font-size: 0.9rem;
+    }
+
+    .mono-soft {
+      background: #f4f9ff;
+      border: 1px solid #d4e6f8;
+      border-radius: 11px;
+      padding: 12px;
+    }
+
+    .muted {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .section-title {
+      margin: 0;
+      font-size: 0.95rem;
+      letter-spacing: -0.01em;
+    }
+
+    .panel-list {
+      margin: 0;
+      padding-left: 20px;
+      color: #18385e;
+      line-height: 1.6;
+    }
+
+    .panel-list li + li {
+      margin-top: 5px;
+    }
+
+    .field {
+      flex: 1 1 320px;
+      min-width: 220px;
+      border: 1px solid #c4daef;
+      border-radius: 10px;
+      font: inherit;
+      padding: 10px 12px;
+      color: var(--ink);
+      background: #fcfdff;
+      outline: none;
+    }
+
+    .field:focus {
+      border-color: #6ca7eb;
+      box-shadow: 0 0 0 3px rgba(94, 156, 227, 0.18);
+    }
+
+    .rule {
+      border: 0;
+      height: 1px;
+      margin: 12px 0 0;
+      background: linear-gradient(90deg, #d8e6f6 0%, #edf4fc 100%);
+    }
+
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      .btn-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section class="hero">
+      <p class="eyebrow">Weather Bot</p>
+      <h1>Live Sky Report</h1>
+      <p>Set a city, check current conditions, and explore focused weather actions.</p>
+    </section>
+
+    <section class="layout">
+      <div id="app-panel" class="stack">
+        {% if user and now_summary %}
+          {% include "partials/now_panel.html" %}
+        {% else %}
+          {% include "partials/city_form.html" %}
+        {% endif %}
+      </div>
+
+      <div id="detail-panel" class="stack">
+        {% if error %}
+          {% include "partials/error_block.html" %}
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="card subtle">
+      <div class="card-head">
+        <h3 class="card-title">Telegram</h3>
+        <span class="chip">Optional</span>
+      </div>
+      <p class="muted" style="margin-bottom: 10px;">Use Telegram for bot commands and daily push messages.</p>
+      {% if telegram_bot_url %}
+        <a class="btn btn-primary" href="{{ telegram_bot_url }}" target="_blank" rel="noopener noreferrer">Configure Telegram Bot</a>
+      {% else %}
+        <button type="button" disabled>Configure Telegram Bot (set TELEGRAM_BOT_USERNAME)</button>
+      {% endif %}
+    </section>
+  </main>
+
+  <script>
+    document.body.addEventListener("htmx:beforeRequest", (e) => {
+      const el = e.target.closest("button, .btn");
+      if (!el) return;
+      el.dataset.orig = el.textContent;
+      el.textContent = "Loading...";
+      el.disabled = true;
+    });
+
+    document.body.addEventListener("htmx:afterRequest", (e) => {
+      const el = e.target.closest("button, .btn");
+      if (!el) return;
+      if (el.dataset.orig) el.textContent = el.dataset.orig;
+      el.disabled = false;
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+services:
+  weather-bot:
+    build: .
+    container_name: weather-dashboard-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "8000:8000"
