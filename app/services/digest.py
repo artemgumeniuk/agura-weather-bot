@@ -19,12 +19,12 @@ def _weirdness_label(score: float) -> str:
 
 def _weirdness_explanation(score: float) -> str:
     if score < 1.0:
-        return "Compared with typical weather for this date in your area, conditions are close to normal."
+        return "Compared with typical weather for this date in your area, this is close to normal and within the usual day-to-day range."
     if score < 2.0:
-        return "Compared with typical weather for this date in your area, conditions are noticeable but not extreme."
+        return "Compared with typical weather for this date in your area, this is clearly different from normal, but still within a range that happens fairly regularly."
     if score < 3.0:
-        return "Compared with typical weather for this date in your area, conditions are clearly unusual for this time of year."
-    return "Compared with typical weather for this date in your area, conditions are highly unusual."
+        return "Compared with typical weather for this date in your area, this is clearly unusual and less common for this time of year."
+    return "Compared with typical weather for this date in your area, this is highly unusual and close to rare-event territory."
 
 
 def _percentile_label(percentile: float) -> str:

@@ -122,7 +122,7 @@ def test_build_now_digest_shape_and_weirdness_explanation():
     assert lines[3] == "📊 Vs normal: -1.2°C · Weirdness: 1.4 (notable)"
     assert lines[4] == (
         "Compared with typical weather for this date in your area, "
-        "conditions are noticeable but not extreme."
+        "this is clearly different from normal, but still within a range that happens fairly regularly."
     )
     assert lines[5] == "🕰️ Last year today: 4.1°C, wind 2.1 m/s, precip 0.0 mm"
 
@@ -138,12 +138,12 @@ def test_build_now_digest_weirdness_explanation_boundaries():
         "memory_line": "On this day last year: 0.0°C, wind 0.0 m/s, precip 0.0 mm",
     }
     for score, expected in [
-        (0.9, "conditions are close to normal."),
-        (1.0, "conditions are noticeable but not extreme."),
-        (1.9, "conditions are noticeable but not extreme."),
-        (2.0, "conditions are clearly unusual for this time of year."),
-        (2.9, "conditions are clearly unusual for this time of year."),
-        (3.0, "conditions are highly unusual."),
+        (0.9, "this is close to normal and within the usual day-to-day range."),
+        (1.0, "this is clearly different from normal, but still within a range that happens fairly regularly."),
+        (1.9, "this is clearly different from normal, but still within a range that happens fairly regularly."),
+        (2.0, "this is clearly unusual and less common for this time of year."),
+        (2.9, "this is clearly unusual and less common for this time of year."),
+        (3.0, "this is highly unusual and close to rare-event territory."),
     ]:
         text = build_now_digest(
             **template,
