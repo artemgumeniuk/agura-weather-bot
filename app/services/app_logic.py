@@ -40,6 +40,28 @@ def _precip_kind_label(avg_temp_c: float, precip_total_mm: float) -> str:
     return "mixed"
 
 
+def _sky_emoji(label: str) -> str:
+    text = (label or "").lower()
+    if "sun" in text:
+        return "☀️"
+    if "overcast" in text:
+        return "☁️"
+    if "cloud" in text:
+        return "⛅"
+    return "🌤️"
+
+
+def _precip_emoji(kind: str) -> str:
+    text = (kind or "").lower()
+    if text == "snow":
+        return "❄️"
+    if text == "rain":
+        return "🌧️"
+    if text == "mixed":
+        return "🌨️"
+    return "☔"
+
+
 def _synthetic_station_id(lat: float, lon: float) -> int:
     # Backward-compatible deterministic id for non-station providers.
     lat_i = int(round((lat + 90.0) * 1000))
@@ -442,9 +464,11 @@ class AppLogic:
             precip_kind = _precip_kind_label(avg_temp, rain_total)
             sky_text = sky_labels.get(day) if sky_labels and day in sky_labels else _sky_label(avg_humidity, rain_total)
             lines.append(
-                f"- {day.strftime('%a %d %b')}: {t_min:.1f}..{t_max:.1f}°C, "
-                f"precip {rain_total:.1f} mm ({precip_kind}, {rain_level} risk), "
-                f"wind peak {wind_peak:.1f} m/s, sky {sky_text}"
+                f"• 🗓️ {day.strftime('%a %d %b')}: "
+                f"🌡️ {t_min:.1f}..{t_max:.1f}°C | "
+                f"{_precip_emoji(precip_kind)} {rain_total:.1f} mm ({precip_kind}, {rain_level} risk) | "
+                f"💨 {wind_peak:.1f} m/s | "
+                f"{_sky_emoji(sky_text)} {sky_text}"
             )
         return "\n".join(lines)
 
@@ -672,9 +696,11 @@ class AppLogic:
             precip_kind = _precip_kind_label(avg_temp, rain_total)
             sky_text = _sky_label(avg_humidity, rain_total)
             lines.append(
-                f"- {day.strftime('%a %d %b')}: {t_min:.1f}..{t_max:.1f}°C, "
-                f"precip {rain_total:.1f} mm ({precip_kind}, {rain_level} risk), "
-                f"wind peak {wind_peak:.1f} m/s, sky {sky_text}"
+                f"• 🗓️ {day.strftime('%a %d %b')}: "
+                f"🌡️ {t_min:.1f}..{t_max:.1f}°C | "
+                f"{_precip_emoji(precip_kind)} {rain_total:.1f} mm ({precip_kind}, {rain_level} risk) | "
+                f"💨 {wind_peak:.1f} m/s | "
+                f"{_sky_emoji(sky_text)} {sky_text}"
             )
         return user_like.city, "\n".join(lines)
 

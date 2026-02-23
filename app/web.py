@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import httpx
+import os
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -13,14 +15,33 @@ from app.services.app_logic import AppLogic
 router = APIRouter(tags=["web"])
 templates = Jinja2Templates(directory="app/templates")
 logic = AppLogic()
+_telegram_bot_url_cache: str | None = None
+_telegram_lookup_attempted = False
 
 
-def _telegram_bot_url() -> str | None:
+async def _telegram_bot_url() -> str | None:
+    global _telegram_bot_url_cache, _telegram_lookup_attempted
+
     if not settings.telegram_bot_username:
-        return None
+        # Fallback: resolve bot username from token once, then cache.
+        if os.getenv("VERCEL") == "1" and settings.telegram_bot_token and not _telegram_lookup_attempted:
+            _telegram_lookup_attempted = True
+            try:
+                async with httpx.AsyncClient(timeout=8) as client:
+                    resp = await client.get(f"https://api.telegram.org/bot{settings.telegram_bot_token}/getMe")
+                    resp.raise_for_status()
+                    payload = resp.json()
+                username = (payload.get("result") or {}).get("username", "")
+                username = username.strip().lstrip("@")
+                if username:
+                    _telegram_bot_url_cache = f"https://t.me/{username}"
+            except Exception:
+                pass
+        return _telegram_bot_url_cache
+
     username = settings.telegram_bot_username.strip().lstrip("@")
     if not username:
-        return None
+        return _telegram_bot_url_cache
     return f"https://t.me/{username}"
 
 
@@ -58,7 +79,7 @@ def _render_error(
 async def web_app(request: Request, session: Session = Depends(get_session)):
     context: dict = {
         "title": "Weather Web Bot",
-        "telegram_bot_url": _telegram_bot_url(),
+        "telegram_bot_url": await _telegram_bot_url(),
         "user": None,
         "now_summary": None,
         "error": None,
