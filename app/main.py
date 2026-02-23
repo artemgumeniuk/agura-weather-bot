@@ -6,11 +6,8 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
-from app.api import router as api_router
-from app.bot import BotRuntime, build_bot
 from app.config import settings
 from app.db import init_db
-from app.scheduler import SchedulerRuntime
 from app.web import router as web_router
 
 logger = logging.getLogger(__name__)
@@ -27,8 +24,14 @@ async def lifespan(app: FastAPI):
             stale_logic_file,
         )
 
-    bot_runtime: BotRuntime | None = None if settings.web_stateless_mode else build_bot()
-    scheduler_runtime = SchedulerRuntime() if not settings.web_stateless_mode else None
+    bot_runtime = None
+    scheduler_runtime = None
+    if not settings.web_stateless_mode:
+        from app.bot import build_bot
+        from app.scheduler import SchedulerRuntime
+
+        bot_runtime = build_bot()
+        scheduler_runtime = SchedulerRuntime()
 
     if bot_runtime is not None and scheduler_runtime is not None:
         await bot_runtime.application.initialize()
@@ -61,7 +64,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Weather Dashboard Bot", lifespan=lifespan)
 app.include_router(web_router)
-app.include_router(api_router)
+if not settings.web_stateless_mode:
+    from app.api import router as api_router
+
+    app.include_router(api_router)
 
 
 @app.get("/health")

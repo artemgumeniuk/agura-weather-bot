@@ -11,7 +11,6 @@ from app.config import settings
 from app.models import ComfortModelMeta, ComfortRating, DailyDigestLog, ForecastHourly, ObsDaily, UserProfile
 from app.schemas import ComfortPredictResponse, OutfitResponse, TodayVsHistoryResponse
 from app.services.anomaly import compute_precip_streak, mean, percentile_rank, seasonal_window, stddev, z_score
-from app.services.comfort import ComfortModelService
 from app.services.digest import build_daily_digest, build_now_digest, build_stats_digest
 from app.services.external import GeocoderClient, SmhiObsClient
 from app.services.outfit import OutfitInput, build_outfit_advice, comfort_temperature
@@ -233,6 +232,8 @@ class AppLogic:
     def predict_comfort(
         self, session: Session, telegram_id: int, activity: str, minutes_outside: int
     ) -> ComfortPredictResponse:
+        from app.services.comfort import ComfortModelService
+
         user = session.exec(select(UserProfile).where(UserProfile.telegram_id == telegram_id)).first()
         if user is None:
             raise ValueError("Set city first with /setcity")

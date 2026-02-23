@@ -28,8 +28,9 @@ Set:
 - `WEB_STATELESS_MODE=true`
 - `WEATHER_PROVIDER_DEFAULT=openmeteo`
 - `WEATHER_PROVIDER_SWEDEN=openmeteo` (optional; keep `smhi` if you want Sweden fallback)
+- `TELEGRAM_BOT_USERNAME=<your_bot_username>` (optional CTA button)
 
-Deploy using `vercel.json` + `api/index.py` included in this repo.
+Deploy using `vercel.json` + `api/index.py` + `requirements.txt` included in this repo.
 
 ## Telegram commands
 - `/start`
