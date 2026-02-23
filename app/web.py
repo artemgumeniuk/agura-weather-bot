@@ -81,9 +81,13 @@ def _render_error(
 
 @router.get("/", response_class=HTMLResponse)
 async def web_app(request: Request, session: Session = Depends(get_session)):
+    logo_url = (settings.app_logo_url or "").strip() or "/static/agura-frog-logo.jpg"
+    favicon_url = logo_url
     context: dict = {
         "title": "Weather Web Bot",
         "telegram_bot_url": await _telegram_bot_url(),
+        "logo_url": logo_url,
+        "favicon_url": favicon_url,
         "user": None,
         "now_summary": None,
         "error": None,

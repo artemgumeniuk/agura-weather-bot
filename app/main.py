@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.db import init_db
@@ -65,6 +66,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Weather Dashboard Bot", lifespan=lifespan)
 app.include_router(web_router)
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 if not settings.stateless_runtime_enabled:
     from app.api import router as api_router
 

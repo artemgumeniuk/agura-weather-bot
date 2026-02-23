@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ title }}</title>
+  <link rel="icon" href="{{ favicon_url or '/static/agura-frog-logo.jpg' }}" />
+  <link rel="apple-touch-icon" href="{{ favicon_url or '/static/agura-frog-logo.jpg' }}" />
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -49,6 +51,39 @@
       border-radius: 22px;
       box-shadow: var(--shadow);
       padding: 22px;
+    }
+
+    .hero-head {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-wrap {
+      width: 66px;
+      height: 66px;
+      border-radius: 0;
+      background: transparent;
+      border: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      overflow: hidden;
+      box-shadow: none;
+    }
+
+    .logo-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .logo-fallback {
+      font-size: 1.7rem;
+      line-height: 1;
+      display: none;
     }
 
     .eyebrow {
@@ -167,6 +202,14 @@
       color: #ffffff;
     }
 
+    .btn-compact {
+      padding: 6px 10px;
+      font-size: 0.8rem;
+      border-radius: 8px;
+      width: fit-content;
+      min-height: 32px;
+    }
+
     button[disabled], .btn[disabled] {
       opacity: 0.6;
       cursor: not-allowed;
@@ -240,14 +283,23 @@
     @media (max-width: 920px) {
       .layout { grid-template-columns: 1fr; }
       .btn-grid { grid-template-columns: 1fr; }
+      .logo-wrap {
+        width: 56px;
+        height: 56px;
+      }
     }
   </style>
 </head>
 <body>
   <main class="container">
     <section class="hero">
-      <p class="eyebrow">Weather Bot</p>
-      <h1>Live Sky Report</h1>
+      <div class="hero-head">
+        <div class="logo-wrap" aria-hidden="true">
+          <img src="{{ logo_url }}" alt="Agura frog logo" onerror="this.style.display='none';this.nextElementSibling.style.display='inline';" />
+          <span class="logo-fallback">🐸</span>
+        </div>
+        <h1>Agura Weather Bot</h1>
+      </div>
       <p>Set a city, check current conditions, and explore focused weather actions.</p>
     </section>
 
@@ -274,10 +326,21 @@
       </div>
       <p class="muted" style="margin-bottom: 10px;">Use Telegram for bot commands and daily push messages.</p>
       {% if telegram_bot_url %}
-        <a class="btn btn-primary" href="{{ telegram_bot_url }}" target="_blank" rel="noopener noreferrer">Configure Telegram Bot</a>
+        <a class="btn btn-primary btn-compact" href="{{ telegram_bot_url }}" target="_blank" rel="noopener noreferrer">Open bot in Telegram</a>
       {% else %}
-        <button type="button" disabled>Configure Telegram Bot (set TELEGRAM_BOT_USERNAME)</button>
+        <button type="button" class="btn-compact" disabled>Set TELEGRAM_BOT_URL to enable</button>
       {% endif %}
+    </section>
+
+    <section class="card subtle">
+      <div class="card-head">
+        <h3 class="card-title">Sources</h3>
+      </div>
+      <ul class="panel-list">
+        <li>Open-Meteo APIs for global current conditions, forecast, and historical baselines.</li>
+        <li>SMHI Open Data for Sweden-focused weather observations and forecast fallback.</li>
+        <li>Nominatim/OpenStreetMap geocoding to resolve city names to coordinates.</li>
+      </ul>
     </section>
   </main>
 

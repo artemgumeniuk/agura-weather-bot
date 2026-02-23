@@ -83,7 +83,7 @@ def test_root_without_user_shows_city_form(monkeypatch):
     resp = client.get("/")
     assert resp.status_code == 200
     assert "Set City" in resp.text
-    assert "Configure Telegram Bot (set TELEGRAM_BOT_USERNAME)" in resp.text
+    assert "Set TELEGRAM_BOT_URL to enable" in resp.text
 
 
 def test_root_with_telegram_username_shows_bot_link(monkeypatch):
@@ -91,7 +91,7 @@ def test_root_with_telegram_username_shows_bot_link(monkeypatch):
     monkeypatch.setattr(web_module.settings, "telegram_bot_username", "my_weather_bot")
     resp = client.get("/")
     assert resp.status_code == 200
-    assert "Configure Telegram Bot" in resp.text
+    assert "Open bot in Telegram" in resp.text
     assert "https://t.me/my_weather_bot" in resp.text
 
 
