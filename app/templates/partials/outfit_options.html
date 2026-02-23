@@ -5,9 +5,9 @@
   </div>
   <p class="muted" style="margin-bottom: 12px;">Select duration and activity to get a practical outfit suggestion.</p>
   <div class="btn-grid">
-    <button hx-get="/web/outfit?minutes=15&activity=walking" hx-target="#detail-panel" hx-swap="innerHTML">15 min walking</button>
-    <button hx-get="/web/outfit?minutes=60&activity=walking" hx-target="#detail-panel" hx-swap="innerHTML">60 min walking</button>
-    <button hx-get="/web/outfit?minutes=15&activity=biking" hx-target="#detail-panel" hx-swap="innerHTML">15 min biking</button>
-    <button hx-get="/web/outfit?minutes=60&activity=biking" hx-target="#detail-panel" hx-swap="innerHTML">60 min biking</button>
+    <button hx-get="/web/outfit?minutes=15&activity=walking" {% if city_query %}hx-vals='{{ {"city": city_query}|tojson }}'{% endif %} hx-target="#detail-panel" hx-swap="innerHTML">15 min walking</button>
+    <button hx-get="/web/outfit?minutes=60&activity=walking" {% if city_query %}hx-vals='{{ {"city": city_query}|tojson }}'{% endif %} hx-target="#detail-panel" hx-swap="innerHTML">60 min walking</button>
+    <button hx-get="/web/outfit?minutes=15&activity=biking" {% if city_query %}hx-vals='{{ {"city": city_query}|tojson }}'{% endif %} hx-target="#detail-panel" hx-swap="innerHTML">15 min biking</button>
+    <button hx-get="/web/outfit?minutes=60&activity=biking" {% if city_query %}hx-vals='{{ {"city": city_query}|tojson }}'{% endif %} hx-target="#detail-panel" hx-swap="innerHTML">60 min biking</button>
   </div>
 </div>

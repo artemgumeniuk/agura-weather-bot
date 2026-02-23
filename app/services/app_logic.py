@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
+from types import SimpleNamespace
 
 from sqlalchemy import delete
 from sqlmodel import Session, select
 
 from app.config import settings
-from app.models import ComfortModelMeta, ComfortRating, DailyDigestLog, ForecastHourly, UserProfile
+from app.models import ComfortModelMeta, ComfortRating, DailyDigestLog, ForecastHourly, ObsDaily, UserProfile
 from app.schemas import ComfortPredictResponse, OutfitResponse, TodayVsHistoryResponse
+from app.services.anomaly import compute_precip_streak, mean, percentile_rank, seasonal_window, stddev, z_score
 from app.services.comfort import ComfortModelService
 from app.services.digest import build_daily_digest, build_now_digest, build_stats_digest
 from app.services.external import GeocoderClient, SmhiObsClient
@@ -444,6 +446,253 @@ class AppLogic:
                 f"wind peak {wind_peak:.1f} m/s, sky {sky_text}"
             )
         return "\n".join(lines)
+
+    async def _resolve_stateless_city(self, city: str) -> tuple[SimpleNamespace, list]:
+        geo = await self.providers.geocode_city(city)
+        provider = self.providers.provider_for_country(geo.country_code)
+        resolved = geo
+        if provider.provider_name != geo.provider:
+            resolved = await provider.geocode_city(city)
+        rows = await provider.fetch_forecast(resolved.lat, resolved.lon)
+        if not rows:
+            raise ValueError("No forecast available")
+        station_id_value = resolved.station_id or _synthetic_station_id(resolved.lat, resolved.lon)
+        user_like = SimpleNamespace(
+            city=resolved.display_name,
+            lat=resolved.lat,
+            lon=resolved.lon,
+            station_id=station_id_value,
+            timezone=resolved.timezone or settings.default_timezone,
+            weather_provider=provider.provider_name,
+            location_key=resolved.provider_location_key,
+            country_code=resolved.country_code,
+        )
+        return user_like, rows
+
+    def _anomaly_from_stateless_data(
+        self,
+        user_like: SimpleNamespace,
+        today_row: ObsDaily,
+        history_rows: list[ObsDaily],
+    ) -> TodayVsHistoryResponse:
+        today = today_row.date
+        all_rows = sorted(history_rows + [today_row], key=lambda r: r.date)
+        history = [r for r in all_rows if r.date < today and r.t_mean is not None]
+        if not history:
+            return TodayVsHistoryResponse.model_validate(
+                {
+                    "date": today,
+                    "station_id": user_like.station_id,
+                    "location_key": user_like.location_key,
+                    "provider": user_like.weather_provider,
+                    "temp_anomaly_c": 0.0,
+                    "temp_percentile": 50.0,
+                    "precip_streak_days": compute_precip_streak(all_rows, today),
+                    "z_temp": 0.0,
+                    "z_wind": 0.0,
+                    "z_precip": 0.0,
+                    "weirdness_score": 0.0,
+                    "baseline_years": 0,
+                    "confidence_note": "history baseline warming up",
+                }
+            )
+        years = max(1, min(30, (today - min(h.date for h in history)).days // 365))
+        start = today - timedelta(days=years * 365)
+        candidate_history = [h for h in history if h.date >= start]
+        if len(candidate_history) < 365 * 3:
+            candidate_history = history
+
+        doy = today.timetuple().tm_yday
+        seasonal = seasonal_window(candidate_history, doy, width_days=7) or candidate_history
+        t_hist = [x.t_mean for x in seasonal if x.t_mean is not None]
+        w_hist = [x.ws_mean for x in seasonal if x.ws_mean is not None]
+        p_hist = [x.precip_sum for x in seasonal if x.precip_sum is not None]
+        t_today = float(today_row.t_mean or 0.0)
+        w_today = float(today_row.ws_mean or 0.0)
+        p_today = float(today_row.precip_sum or 0.0)
+        t_mean = mean(t_hist) if t_hist else 0.0
+        w_mean = mean(w_hist) if w_hist else 0.0
+        p_mean = mean(p_hist) if p_hist else 0.0
+        z_temp = z_score(t_today, t_mean, stddev(t_hist) if t_hist else 0.0)
+        z_wind = z_score(w_today, w_mean, stddev(w_hist) if w_hist else 0.0)
+        z_precip = z_score(p_today, p_mean, stddev(p_hist) if p_hist else 0.0)
+        confidence = "high" if years >= 10 else ("medium" if years >= 5 else "low")
+        return TodayVsHistoryResponse.model_validate(
+            {
+                "date": today,
+                "station_id": user_like.station_id,
+                "location_key": user_like.location_key,
+                "provider": user_like.weather_provider,
+                "temp_anomaly_c": t_today - t_mean,
+                "temp_percentile": percentile_rank(sorted(t_hist), t_today) if t_hist else 50.0,
+                "precip_streak_days": compute_precip_streak(all_rows, today),
+                "z_temp": z_temp,
+                "z_wind": z_wind,
+                "z_precip": z_precip,
+                "weirdness_score": (z_temp**2 + z_wind**2 + z_precip**2) ** 0.5,
+                "baseline_years": years,
+                "confidence_note": f"{confidence} confidence baseline using ~{years} years",
+            }
+        )
+
+    async def _history_rows_stateless(self, user_like: SimpleNamespace) -> list[ObsDaily]:
+        provider = self.providers.provider_for_name(user_like.weather_provider)
+        today = date.today()
+        for years in [settings.history_warmup_years, 10, 5]:
+            start = today - timedelta(days=max(5, years) * 365)
+            rows = await provider.fetch_daily_history(user_like.lat, user_like.lon, start_date=start, end_date=today)
+            if len(rows) >= 365 * 3 or years == 5:
+                return [
+                    ObsDaily(
+                        station_id=user_like.station_id,
+                        location_key=user_like.location_key,
+                        provider=user_like.weather_provider,
+                        date=r.date,
+                        t_mean=r.t_mean,
+                        ws_mean=r.ws_mean,
+                        precip_sum=r.precip_sum,
+                        rh_mean=r.rh_mean,
+                    )
+                    for r in rows
+                ]
+        return []
+
+    @staticmethod
+    def _closest_forecast_point(rows: list):
+        now = datetime.now(UTC)
+        return min(rows, key=lambda r: abs((r.valid_time - now).total_seconds()))
+
+    async def build_now_summary_for_city(self, city: str) -> tuple[str, str]:
+        user_like, rows = await self._resolve_stateless_city(city)
+        now_row = self._closest_forecast_point(rows)
+        history_rows = await self._history_rows_stateless(user_like)
+        today_row = ObsDaily(
+            station_id=user_like.station_id,
+            location_key=user_like.location_key,
+            provider=user_like.weather_provider,
+            date=date.today(),
+            t_mean=now_row.t,
+            ws_mean=now_row.ws,
+            precip_sum=now_row.tp,
+            rh_mean=now_row.r,
+        )
+        anomaly = self._anomaly_from_stateless_data(user_like, today_row=today_row, history_rows=history_rows)
+        try:
+            target = date.today().replace(year=date.today().year - 1)
+        except ValueError:
+            target = date.today().replace(month=2, day=28, year=date.today().year - 1)
+        hit = next((r for r in history_rows if r.date == target), None)
+        memory = (
+            f"On this day last year: {hit.t_mean or 0.0:.1f}°C, wind {hit.ws_mean or 0.0:.1f} m/s, precip {hit.precip_sum or 0.0:.1f} mm"
+            if hit
+            else "No same-date observation last year yet"
+        )
+        return (
+            user_like.city,
+            build_now_digest(
+                city=user_like.city,
+                current_temp_c=now_row.t,
+                current_comfort_c=comfort_temperature(now_row.t, now_row.ws, now_row.r),
+                current_wind_ms=now_row.ws,
+                current_humidity_pct=now_row.r,
+                current_precip_mm=now_row.tp,
+                anomaly=anomaly,
+                memory_line=memory,
+            ),
+        )
+
+    async def build_stats_summary_for_city(self, city: str) -> tuple[str, str]:
+        user_like, rows = await self._resolve_stateless_city(city)
+        now_row = self._closest_forecast_point(rows)
+        history_rows = await self._history_rows_stateless(user_like)
+        today_row = ObsDaily(
+            station_id=user_like.station_id,
+            location_key=user_like.location_key,
+            provider=user_like.weather_provider,
+            date=date.today(),
+            t_mean=now_row.t,
+            ws_mean=now_row.ws,
+            precip_sum=now_row.tp,
+            rh_mean=now_row.r,
+        )
+        anomaly = self._anomaly_from_stateless_data(user_like, today_row=today_row, history_rows=history_rows)
+        next_rows = [r for r in rows if 0 <= (r.valid_time - datetime.now(UTC)).total_seconds() <= 24 * 3600]
+        rain_total = sum(r.tp for r in next_rows)
+        rain_risk = "low" if rain_total < 0.3 else ("moderate" if rain_total < 2.0 else "high")
+        wind_peak = max((r.gust for r in next_rows), default=0.0)
+        avg_humidity = (sum(r.r for r in next_rows) / len(next_rows)) if next_rows else now_row.r
+        sky_summary = _sky_label(avg_humidity, rain_total)
+        try:
+            target = date.today().replace(year=date.today().year - 1)
+        except ValueError:
+            target = date.today().replace(month=2, day=28, year=date.today().year - 1)
+        hit = next((r for r in history_rows if r.date == target), None)
+        memory = (
+            f"On this day last year: {hit.t_mean or 0.0:.1f}°C, wind {hit.ws_mean or 0.0:.1f} m/s, precip {hit.precip_sum or 0.0:.1f} mm"
+            if hit
+            else "No same-date observation last year yet"
+        )
+        return (
+            user_like.city,
+            build_stats_digest(
+                city=user_like.city,
+                anomaly=anomaly,
+                sky_summary=sky_summary,
+                rain_risk=rain_risk,
+                wind_peak=wind_peak,
+                memory_line=memory,
+            ),
+        )
+
+    async def build_forecast_digest_for_city(self, city: str, days: int) -> tuple[str, str]:
+        if days not in {1, 3}:
+            raise ValueError("forecast days must be 1 or 3")
+        user_like, rows = await self._resolve_stateless_city(city)
+        start_day = date.today() + timedelta(days=1)
+        end_day = start_day + timedelta(days=days)
+        grouped: dict[date, list] = defaultdict(list)
+        for row in rows:
+            day = row.valid_time.date()
+            if start_day <= day < end_day:
+                grouped[day].append(row)
+        if not grouped:
+            raise ValueError("No forecast rows available for the requested window")
+        title = "📅 Forecast for tomorrow" if days == 1 else "📅 Forecast for next 3 days"
+        lines = [title]
+        for day in sorted(grouped.keys()):
+            bucket = grouped[day]
+            t_min = min(r.t for r in bucket)
+            t_max = max(r.t for r in bucket)
+            rain_total = sum(r.tp for r in bucket)
+            wind_peak = max(r.gust for r in bucket)
+            avg_temp = sum(r.t for r in bucket) / len(bucket)
+            avg_humidity = sum(r.r for r in bucket) / len(bucket)
+            rain_level = "low" if rain_total < 0.3 else ("moderate" if rain_total < 2.0 else "high")
+            precip_kind = _precip_kind_label(avg_temp, rain_total)
+            sky_text = _sky_label(avg_humidity, rain_total)
+            lines.append(
+                f"- {day.strftime('%a %d %b')}: {t_min:.1f}..{t_max:.1f}°C, "
+                f"precip {rain_total:.1f} mm ({precip_kind}, {rain_level} risk), "
+                f"wind peak {wind_peak:.1f} m/s, sky {sky_text}"
+            )
+        return user_like.city, "\n".join(lines)
+
+    async def outfit_now_for_city(self, city: str, minutes_outside: int, activity: str) -> tuple[str, OutfitResponse]:
+        user_like, rows = await self._resolve_stateless_city(city)
+        now_row = self._closest_forecast_point(rows)
+        advice = build_outfit_advice(
+            OutfitInput(
+                t=now_row.t,
+                ws=now_row.ws,
+                gust=now_row.gust,
+                r=now_row.r,
+                tp=now_row.tp,
+                pmean=now_row.pmean,
+                minutes_outside=minutes_outside,
+                activity=activity,
+            )
+        )
+        return user_like.city, OutfitResponse.model_validate(advice)
 
     def log_daily_digest(
         self,

@@ -5,7 +5,7 @@
   </div>
   <p class="muted" style="margin-bottom: 12px;">Choose how far ahead you want the summary.</p>
   <div class="btn-grid">
-    <button hx-get="/web/forecast?days=1" hx-target="#detail-panel" hx-swap="innerHTML">1 day</button>
-    <button hx-get="/web/forecast?days=3" hx-target="#detail-panel" hx-swap="innerHTML">3 days</button>
+    <button hx-get="/web/forecast?days=1" {% if city_query %}hx-vals='{{ {"city": city_query}|tojson }}'{% endif %} hx-target="#detail-panel" hx-swap="innerHTML">1 day</button>
+    <button hx-get="/web/forecast?days=3" {% if city_query %}hx-vals='{{ {"city": city_query}|tojson }}'{% endif %} hx-target="#detail-panel" hx-swap="innerHTML">3 days</button>
   </div>
 </div>

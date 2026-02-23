@@ -8,6 +8,7 @@ from fastapi import FastAPI
 
 from app.api import router as api_router
 from app.bot import BotRuntime, build_bot
+from app.config import settings
 from app.db import init_db
 from app.scheduler import SchedulerRuntime
 from app.web import router as web_router
@@ -17,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    if not settings.web_stateless_mode:
+        init_db()
     stale_logic_file = Path(__file__).with_name("app_logic.py")
     if stale_logic_file.exists():
         logger.warning(
@@ -25,10 +27,10 @@ async def lifespan(app: FastAPI):
             stale_logic_file,
         )
 
-    bot_runtime: BotRuntime | None = build_bot()
-    scheduler_runtime = SchedulerRuntime()
+    bot_runtime: BotRuntime | None = None if settings.web_stateless_mode else build_bot()
+    scheduler_runtime = SchedulerRuntime() if not settings.web_stateless_mode else None
 
-    if bot_runtime is not None:
+    if bot_runtime is not None and scheduler_runtime is not None:
         await bot_runtime.application.initialize()
         await bot_runtime.application.start()
         await bot_runtime.application.updater.start_polling()
@@ -38,7 +40,7 @@ async def lifespan(app: FastAPI):
 
         scheduler_runtime.start(send_message)
         app.state.bot_runtime = bot_runtime
-    else:
+    elif scheduler_runtime is not None:
         async def noop_send(chat_id: int, text: str, **kwargs):
             return None
 
@@ -49,7 +51,8 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        await scheduler_runtime.stop()
+        if scheduler_runtime is not None:
+            await scheduler_runtime.stop()
         if bot_runtime is not None:
             await bot_runtime.application.updater.stop()
             await bot_runtime.application.stop()

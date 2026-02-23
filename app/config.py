@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_env: str = "dev"
+    web_stateless_mode: bool = False
     database_url: str = "sqlite:///data/weatherbot.db"
     default_timezone: str = "Europe/Stockholm"
     daily_digest_hour: int = 7

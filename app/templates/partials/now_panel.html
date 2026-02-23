@@ -1,6 +1,6 @@
 <div class="card">
   <div class="card-head">
-    <h2 class="card-title">{{ user.city.split(',')[0].strip() }}</h2>
+    <h2 class="card-title">{% if city_name %}{{ city_name.split(',')[0].strip() }}{% else %}{{ user.city.split(',')[0].strip() }}{% endif %}</h2>
     <span class="chip">Live</span>
   </div>
   <pre class="mono mono-soft">{{ now_summary }}</pre>
@@ -13,10 +13,10 @@
     <h3 class="section-title" style="margin: 0;">Quick Actions</h3>
   </div>
   <div class="btn-grid">
-    <button hx-get="/web/now" hx-target="#app-panel" hx-swap="innerHTML">🔄 Refresh</button>
-    <button hx-get="/web/outfit/options" hx-target="#detail-panel" hx-swap="innerHTML">🧥 Outfit</button>
-    <button hx-get="/web/forecast/options" hx-target="#detail-panel" hx-swap="innerHTML">📅 Forecast</button>
-    <button hx-get="/web/stats" hx-target="#detail-panel" hx-swap="innerHTML">📈 Stats</button>
+    <button hx-get="/web/now" {% if city_query %}hx-vals='{{ {"city": city_query}|tojson }}'{% endif %} hx-target="#app-panel" hx-swap="innerHTML">🔄 Refresh</button>
+    <button hx-get="/web/outfit/options" {% if city_query %}hx-vals='{{ {"city": city_query}|tojson }}'{% endif %} hx-target="#detail-panel" hx-swap="innerHTML">🧥 Outfit</button>
+    <button hx-get="/web/forecast/options" {% if city_query %}hx-vals='{{ {"city": city_query}|tojson }}'{% endif %} hx-target="#detail-panel" hx-swap="innerHTML">📅 Forecast</button>
+    <button hx-get="/web/stats" {% if city_query %}hx-vals='{{ {"city": city_query}|tojson }}'{% endif %} hx-target="#detail-panel" hx-swap="innerHTML">📈 Stats</button>
     <button hx-post="/web/location" hx-target="#app-panel" hx-swap="innerHTML">⚙️ Location</button>
   </div>
 </div>

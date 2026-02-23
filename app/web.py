@@ -56,18 +56,20 @@ def _render_error(
 
 @router.get("/", response_class=HTMLResponse)
 async def web_app(request: Request, session: Session = Depends(get_session)):
-    user = session.exec(select(UserProfile).order_by(UserProfile.created_at)).first()
     context: dict = {
         "title": "Weather Web Bot",
         "telegram_bot_url": _telegram_bot_url(),
-        "user": user,
+        "user": None,
         "now_summary": None,
         "error": None,
     }
-
-    if user is None:
+    if settings.web_stateless_mode:
         return templates.TemplateResponse(request, "web_app.html", context)
 
+    user = _single_user(session)
+    context["user"] = user
+    if user is None:
+        return templates.TemplateResponse(request, "web_app.html", context)
     try:
         await logic.refresh_user_data(session, user)
         context["now_summary"] = logic.build_now_summary(session, user)
@@ -87,24 +89,45 @@ async def web_set_city(
     if not city_text:
         return _render_city_form(request, "Please enter a city name.", status_code=400)
 
-    existing = _single_user(session)
-    telegram_id = existing.telegram_id if existing is not None else 1
-
     try:
+        if settings.web_stateless_mode:
+            city_name, now_summary = await logic.build_now_summary_for_city(city_text)
+            return templates.TemplateResponse(
+                request,
+                "partials/now_panel.html",
+                {"user": None, "city_name": city_name, "city_query": city_name, "now_summary": now_summary},
+            )
+
+        existing = _single_user(session)
+        telegram_id = existing.telegram_id if existing is not None else 1
         user = await logic.set_city(session, telegram_id=telegram_id, city=city_text)
         await logic.refresh_user_data(session, user)
         now_summary = logic.build_now_summary(session, user)
         return templates.TemplateResponse(
             request,
             "partials/now_panel.html",
-            {"user": user, "now_summary": now_summary},
+            {"user": user, "city_query": user.city, "now_summary": now_summary},
         )
     except Exception as exc:
         return _render_error(request, f"Failed to set city: {exc}", status_code=400)
 
 
 @router.get("/web/now", response_class=HTMLResponse)
-async def web_now(request: Request, session: Session = Depends(get_session)):
+async def web_now(request: Request, city: str | None = Query(default=None), session: Session = Depends(get_session)):
+    if settings.web_stateless_mode:
+        city_text = (city or "").strip()
+        if not city_text:
+            return _render_city_form(request, "Set city first.", status_code=400)
+        try:
+            city_name, now_summary = await logic.build_now_summary_for_city(city_text)
+            return templates.TemplateResponse(
+                request,
+                "partials/now_panel.html",
+                {"user": None, "city_name": city_name, "city_query": city_name, "now_summary": now_summary},
+            )
+        except Exception as exc:
+            return _render_error(request, f"Failed to build now summary: {exc}", status_code=400)
+
     user = _single_user(session)
     if user is None:
         return _render_city_form(request, "Set city first.", status_code=400)
@@ -114,14 +137,28 @@ async def web_now(request: Request, session: Session = Depends(get_session)):
         return templates.TemplateResponse(
             request,
             "partials/now_panel.html",
-            {"user": user, "now_summary": now_summary},
+            {"user": user, "city_query": user.city, "now_summary": now_summary},
         )
     except Exception as exc:
         return _render_error(request, f"Failed to build now summary: {exc}", status_code=400)
 
 
 @router.get("/web/stats", response_class=HTMLResponse)
-async def web_stats(request: Request, session: Session = Depends(get_session)):
+async def web_stats(request: Request, city: str | None = Query(default=None), session: Session = Depends(get_session)):
+    if settings.web_stateless_mode:
+        city_text = (city or "").strip()
+        if not city_text:
+            return _render_city_form(request, "Set city first.", status_code=400)
+        try:
+            _, stats_summary = await logic.build_stats_summary_for_city(city_text)
+            return templates.TemplateResponse(
+                request,
+                "partials/stats_block.html",
+                {"stats_summary": stats_summary},
+            )
+        except Exception as exc:
+            return _render_error(request, f"Failed to build stats: {exc}", status_code=400)
+
     user = _single_user(session)
     if user is None:
         return _render_city_form(request, "Set city first.", status_code=400)
@@ -138,20 +175,45 @@ async def web_stats(request: Request, session: Session = Depends(get_session)):
 
 
 @router.get("/web/forecast/options", response_class=HTMLResponse)
-async def web_forecast_options(request: Request, session: Session = Depends(get_session)):
-    if _single_user(session) is None:
+async def web_forecast_options(
+    request: Request, city: str | None = Query(default=None), session: Session = Depends(get_session)
+):
+    if settings.web_stateless_mode:
+        city_text = (city or "").strip()
+        if not city_text:
+            return _render_city_form(request, "Set city first.", status_code=400)
+        return templates.TemplateResponse(request, "partials/forecast_options.html", {"city_query": city_text})
+
+    user = _single_user(session)
+    if user is None:
         return _render_city_form(request, "Set city first.", status_code=400)
-    return templates.TemplateResponse(request, "partials/forecast_options.html", {})
+    return templates.TemplateResponse(request, "partials/forecast_options.html", {"city_query": user.city})
 
 
 @router.get("/web/forecast", response_class=HTMLResponse)
 async def web_forecast(
     request: Request,
     days: int = Query(1),
+    city: str | None = Query(default=None),
     session: Session = Depends(get_session),
 ):
     if days not in {1, 3}:
         raise HTTPException(status_code=400, detail="days must be 1 or 3")
+
+    if settings.web_stateless_mode:
+        city_text = (city or "").strip()
+        if not city_text:
+            return _render_city_form(request, "Set city first.", status_code=400)
+        try:
+            _, forecast_summary = await logic.build_forecast_digest_for_city(city_text, days)
+            return templates.TemplateResponse(
+                request,
+                "partials/forecast_block.html",
+                {"forecast_summary": forecast_summary},
+            )
+        except Exception as exc:
+            return _render_error(request, f"Failed to build forecast: {exc}", status_code=400)
+
     user = _single_user(session)
     if user is None:
         return _render_city_form(request, "Set city first.", status_code=400)
@@ -168,10 +230,19 @@ async def web_forecast(
 
 
 @router.get("/web/outfit/options", response_class=HTMLResponse)
-async def web_outfit_options(request: Request, session: Session = Depends(get_session)):
-    if _single_user(session) is None:
+async def web_outfit_options(
+    request: Request, city: str | None = Query(default=None), session: Session = Depends(get_session)
+):
+    if settings.web_stateless_mode:
+        city_text = (city or "").strip()
+        if not city_text:
+            return _render_city_form(request, "Set city first.", status_code=400)
+        return templates.TemplateResponse(request, "partials/outfit_options.html", {"city_query": city_text})
+
+    user = _single_user(session)
+    if user is None:
         return _render_city_form(request, "Set city first.", status_code=400)
-    return templates.TemplateResponse(request, "partials/outfit_options.html", {})
+    return templates.TemplateResponse(request, "partials/outfit_options.html", {"city_query": user.city})
 
 
 @router.get("/web/outfit", response_class=HTMLResponse)
@@ -179,12 +250,28 @@ async def web_outfit(
     request: Request,
     minutes: int = Query(15),
     activity: str = Query("walking"),
+    city: str | None = Query(default=None),
     session: Session = Depends(get_session),
 ):
     if minutes not in {15, 60}:
         raise HTTPException(status_code=400, detail="minutes must be one of 15, 60")
     if activity not in {"walking", "biking"}:
         raise HTTPException(status_code=400, detail="activity must be walking or biking")
+
+    if settings.web_stateless_mode:
+        city_text = (city or "").strip()
+        if not city_text:
+            return _render_city_form(request, "Set city first.", status_code=400)
+        try:
+            _, advice = await logic.outfit_now_for_city(city_text, minutes_outside=minutes, activity=activity)
+            return templates.TemplateResponse(
+                request,
+                "partials/outfit_block.html",
+                {"advice": advice, "minutes": minutes, "activity": activity},
+            )
+        except Exception as exc:
+            return _render_error(request, f"Failed to build outfit: {exc}", status_code=400)
+
     user = _single_user(session)
     if user is None:
         return _render_city_form(request, "Set city first.", status_code=400)
@@ -202,6 +289,8 @@ async def web_outfit(
 
 @router.post("/web/location", response_class=HTMLResponse)
 async def web_location(request: Request, session: Session = Depends(get_session)):
+    if settings.web_stateless_mode:
+        return _render_city_form(request, "Send a city name to check weather.")
     user = _single_user(session)
     if user is None:
         return _render_city_form(request, "Send a new city name to update location.")
