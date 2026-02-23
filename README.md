@@ -22,6 +22,7 @@ Telegram-first weather anomaly dashboard with global weather support (Open-Meteo
    - `http://127.0.0.1:8000/`
 5. Optional Telegram web CTA config:
    - `TELEGRAM_BOT_USERNAME=<your_bot_username>`
+   - or `TELEGRAM_BOT_URL=https://t.me/<your_bot_username>`
 
 ## Vercel stateless web mode
 Set:
@@ -29,6 +30,7 @@ Set:
 - `WEATHER_PROVIDER_DEFAULT=openmeteo`
 - `WEATHER_PROVIDER_SWEDEN=openmeteo` (optional; keep `smhi` if you want Sweden fallback)
 - `TELEGRAM_BOT_USERNAME=<your_bot_username>` (optional CTA button)
+- `TELEGRAM_BOT_URL=https://t.me/<your_bot_username>` (preferred explicit CTA button)
 
 Deploy using `vercel.json` + `api/index.py` + `requirements.txt` included in this repo.
 

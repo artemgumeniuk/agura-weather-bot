@@ -22,6 +22,10 @@ _telegram_lookup_attempted = False
 async def _telegram_bot_url() -> str | None:
     global _telegram_bot_url_cache, _telegram_lookup_attempted
 
+    direct_url = (settings.telegram_bot_url or "").strip()
+    if direct_url:
+        return direct_url
+
     if not settings.telegram_bot_username:
         # Fallback: resolve bot username from token once, then cache.
         if os.getenv("VERCEL") == "1" and settings.telegram_bot_token and not _telegram_lookup_attempted:

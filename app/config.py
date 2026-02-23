@@ -15,6 +15,7 @@ class Settings(BaseSettings):
 
     telegram_bot_token: str = ""
     telegram_bot_username: str = ""
+    telegram_bot_url: str = ""
     telegram_allowed_user_id: str | None = None
 
     nominatim_base_url: str = "https://nominatim.openstreetmap.org"
