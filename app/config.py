@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     weather_provider_sweden: str = "smhi"
     openmeteo_base_url: str = "https://api.open-meteo.com"
     openmeteo_geo_base_url: str = "https://geocoding-api.open-meteo.com"
+    openmeteo_archive_base_url: str = "https://archive-api.open-meteo.com"
     history_warmup_years: int = 30
     history_warmup_batch_size: int = 20
 

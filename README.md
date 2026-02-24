@@ -29,6 +29,7 @@ Set:
 - `WEB_STATELESS_MODE=true`
 - `WEATHER_PROVIDER_DEFAULT=openmeteo`
 - `WEATHER_PROVIDER_SWEDEN=openmeteo` (optional; keep `smhi` if you want Sweden fallback)
+- `OPENMETEO_ARCHIVE_BASE_URL=https://archive-api.open-meteo.com`
 - `TELEGRAM_BOT_USERNAME=<your_bot_username>` (optional CTA button)
 - `TELEGRAM_BOT_URL=https://t.me/<your_bot_username>` (preferred explicit CTA button)
 

@@ -346,6 +346,11 @@ def build_bot() -> BotRuntime | None:
         except Exception as exc:
             await update.message.reply_text(f"Failed to build now summary: {exc}")
 
+    async def today_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if unauthorized(update):
+            return
+        await update.message.reply_text("Use /now for current weather.")
+
     async def outfit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if unauthorized(update):
             return
@@ -408,7 +413,7 @@ def build_bot() -> BotRuntime | None:
             context.user_data[WAITING_CITY_KEY] = True
             await query.message.reply_text("Send your city name (example: Gothenburg).")
             return
-        if action in {"now", "today"}:
+        if action == "now":
             try:
                 await send_now_summary(query.message.reply_text, update.effective_user.id)
             except Exception as exc:
@@ -604,6 +609,7 @@ def build_bot() -> BotRuntime | None:
     app.add_handler(CommandHandler("admin_rmdup", admin_rmdup))
     app.add_handler(CommandHandler("setcity", setcity))
     app.add_handler(CommandHandler("now", now_cmd))
+    app.add_handler(CommandHandler("today", today_cmd))
     app.add_handler(CommandHandler("forecast", forecast))
     app.add_handler(CommandHandler("outfit", outfit))
     app.add_handler(CallbackQueryHandler(nav_choice, pattern=f"^{NAV_CALLBACK_PREFIX}"))

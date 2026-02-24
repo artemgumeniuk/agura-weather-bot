@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
+import logging
 from types import SimpleNamespace
 
 from sqlalchemy import delete
@@ -16,6 +17,8 @@ from app.services.external import GeocoderClient, SmhiObsClient
 from app.services.outfit import OutfitInput, build_outfit_advice, comfort_temperature
 from app.services.providers.router import ProviderRouter
 from app.services.weather_service import WeatherService, closest_forecast_row, next_24h_rows
+
+logger = logging.getLogger(__name__)
 
 
 def _sky_label(avg_humidity: float, precip_total: float) -> str:
@@ -478,6 +481,15 @@ class AppLogic:
         resolved = geo
         if provider.provider_name != geo.provider:
             resolved = await provider.geocode_city(city)
+        logger.info(
+            "stateless_city_resolved input_city=%s resolved_city=%s provider=%s country=%s lat=%.4f lon=%.4f",
+            city,
+            resolved.display_name,
+            provider.provider_name,
+            resolved.country_code,
+            resolved.lat,
+            resolved.lon,
+        )
         rows = await provider.fetch_forecast(resolved.lat, resolved.lon)
         if not rows:
             raise ValueError("No forecast available")
@@ -499,11 +511,17 @@ class AppLogic:
         user_like: SimpleNamespace,
         today_row: ObsDaily,
         history_rows: list[ObsDaily],
+        history_temporarily_unavailable: bool = False,
     ) -> TodayVsHistoryResponse:
         today = today_row.date
         all_rows = sorted(history_rows + [today_row], key=lambda r: r.date)
         history = [r for r in all_rows if r.date < today and r.t_mean is not None]
         if not history:
+            confidence_note = (
+                "history baseline temporarily unavailable"
+                if history_temporarily_unavailable
+                else "history baseline warming up"
+            )
             return TodayVsHistoryResponse.model_validate(
                 {
                     "date": today,
@@ -518,7 +536,7 @@ class AppLogic:
                     "z_precip": 0.0,
                     "weirdness_score": 0.0,
                     "baseline_years": 0,
-                    "confidence_note": "history baseline warming up",
+                    "confidence_note": confidence_note,
                 }
             )
         years = max(1, min(30, (today - min(h.date for h in history)).days // 365))
@@ -560,27 +578,48 @@ class AppLogic:
             }
         )
 
-    async def _history_rows_stateless(self, user_like: SimpleNamespace) -> list[ObsDaily]:
+    async def _history_rows_stateless(self, user_like: SimpleNamespace) -> tuple[list[ObsDaily], bool]:
         provider = self.providers.provider_for_name(user_like.weather_provider)
         today = date.today()
+        had_fetch_error = False
         for years in [settings.history_warmup_years, 10, 5]:
             start = today - timedelta(days=max(5, years) * 365)
-            rows = await provider.fetch_daily_history(user_like.lat, user_like.lon, start_date=start, end_date=today)
+            try:
+                rows = await provider.fetch_daily_history(
+                    user_like.lat,
+                    user_like.lon,
+                    start_date=start,
+                    end_date=today,
+                )
+            except Exception:
+                had_fetch_error = True
+                logger.exception(
+                    "stateless_history_fetch_failed provider=%s city=%s lat=%.4f lon=%.4f years=%d",
+                    user_like.weather_provider,
+                    user_like.city,
+                    user_like.lat,
+                    user_like.lon,
+                    years,
+                )
+                continue
             if len(rows) >= 365 * 3 or years == 5:
-                return [
-                    ObsDaily(
-                        station_id=user_like.station_id,
-                        location_key=user_like.location_key,
-                        provider=user_like.weather_provider,
-                        date=r.date,
-                        t_mean=r.t_mean,
-                        ws_mean=r.ws_mean,
-                        precip_sum=r.precip_sum,
-                        rh_mean=r.rh_mean,
-                    )
-                    for r in rows
-                ]
-        return []
+                return (
+                    [
+                        ObsDaily(
+                            station_id=user_like.station_id,
+                            location_key=user_like.location_key,
+                            provider=user_like.weather_provider,
+                            date=r.date,
+                            t_mean=r.t_mean,
+                            ws_mean=r.ws_mean,
+                            precip_sum=r.precip_sum,
+                            rh_mean=r.rh_mean,
+                        )
+                        for r in rows
+                    ],
+                    False,
+                )
+        return [], had_fetch_error
 
     @staticmethod
     def _closest_forecast_point(rows: list):
@@ -590,7 +629,13 @@ class AppLogic:
     async def build_now_summary_for_city(self, city: str) -> tuple[str, str]:
         user_like, rows = await self._resolve_stateless_city(city)
         now_row = self._closest_forecast_point(rows)
-        history_rows = await self._history_rows_stateless(user_like)
+        history_rows, history_unavailable = await self._history_rows_stateless(user_like)
+        if history_unavailable:
+            logger.warning(
+                "stateless_now_history_unavailable city=%s provider=%s",
+                user_like.city,
+                user_like.weather_provider,
+            )
         today_row = ObsDaily(
             station_id=user_like.station_id,
             location_key=user_like.location_key,
@@ -601,7 +646,12 @@ class AppLogic:
             precip_sum=now_row.tp,
             rh_mean=now_row.r,
         )
-        anomaly = self._anomaly_from_stateless_data(user_like, today_row=today_row, history_rows=history_rows)
+        anomaly = self._anomaly_from_stateless_data(
+            user_like,
+            today_row=today_row,
+            history_rows=history_rows,
+            history_temporarily_unavailable=history_unavailable,
+        )
         try:
             target = date.today().replace(year=date.today().year - 1)
         except ValueError:
@@ -629,7 +679,13 @@ class AppLogic:
     async def build_stats_summary_for_city(self, city: str) -> tuple[str, str]:
         user_like, rows = await self._resolve_stateless_city(city)
         now_row = self._closest_forecast_point(rows)
-        history_rows = await self._history_rows_stateless(user_like)
+        history_rows, history_unavailable = await self._history_rows_stateless(user_like)
+        if history_unavailable:
+            logger.warning(
+                "stateless_stats_history_unavailable city=%s provider=%s",
+                user_like.city,
+                user_like.weather_provider,
+            )
         today_row = ObsDaily(
             station_id=user_like.station_id,
             location_key=user_like.location_key,
@@ -640,7 +696,12 @@ class AppLogic:
             precip_sum=now_row.tp,
             rh_mean=now_row.r,
         )
-        anomaly = self._anomaly_from_stateless_data(user_like, today_row=today_row, history_rows=history_rows)
+        anomaly = self._anomaly_from_stateless_data(
+            user_like,
+            today_row=today_row,
+            history_rows=history_rows,
+            history_temporarily_unavailable=history_unavailable,
+        )
         next_rows = [r for r in rows if 0 <= (r.valid_time - datetime.now(UTC)).total_seconds() <= 24 * 3600]
         rain_total = sum(r.tp for r in next_rows)
         rain_risk = "low" if rain_total < 0.3 else ("moderate" if rain_total < 2.0 else "high")

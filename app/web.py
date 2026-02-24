@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import httpx
+import logging
 import os
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
@@ -15,6 +16,7 @@ from app.services.app_logic import AppLogic
 router = APIRouter(tags=["web"])
 templates = Jinja2Templates(directory="app/templates")
 logic = AppLogic()
+logger = logging.getLogger(__name__)
 _telegram_bot_url_cache: str | None = None
 _telegram_lookup_attempted = False
 
@@ -77,6 +79,16 @@ def _render_error(
         {"error": error},
         status_code=status_code,
     )
+
+
+def _friendly_city_error(exc: Exception) -> str:
+    raw = str(exc).lower()
+    if "archive" in raw or "open-meteo" in raw or "404" in raw:
+        return (
+            "City saved/current forecast loaded, but historical baseline is temporarily unavailable. "
+            "Try again later."
+        )
+    return "Could not set city right now. Please try again in a few seconds."
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -142,7 +154,8 @@ async def web_set_city(
             {"user": user, "city_query": user.city, "now_summary": now_summary},
         )
     except Exception as exc:
-        return _render_error(request, f"Failed to set city: {exc}", status_code=400)
+        logger.exception("web_set_city_failed city=%s", city_text)
+        return _render_error(request, _friendly_city_error(exc), status_code=400)
 
 
 @router.get("/web/now", response_class=HTMLResponse)

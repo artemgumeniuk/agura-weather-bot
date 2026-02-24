@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, date, datetime
 
 import httpx
 
 from app.config import settings
 from app.services.providers.base import DailyHistoryPoint, ForecastPoint, GeocodeResult
+
+logger = logging.getLogger(__name__)
 
 
 class OpenMeteoProvider:
@@ -95,7 +98,7 @@ class OpenMeteoProvider:
         start_date: date,
         end_date: date,
     ) -> list[DailyHistoryPoint]:
-        url = f"{settings.openmeteo_base_url}/v1/archive"
+        url = f"{settings.openmeteo_archive_base_url}/v1/archive"
         params = {
             "latitude": lat,
             "longitude": lon,
@@ -111,9 +114,35 @@ class OpenMeteoProvider:
             ),
             "timezone": "UTC",
         }
+        logger.info(
+            "openmeteo_archive_fetch_start lat=%.4f lon=%.4f start=%s end=%s url=%s",
+            lat,
+            lon,
+            start_date.isoformat(),
+            end_date.isoformat(),
+            url,
+        )
         async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.get(url, params=params)
-            resp.raise_for_status()
+            try:
+                resp = await client.get(url, params=params)
+                resp.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                logger.error(
+                    "openmeteo_archive_fetch_http_error status=%s lat=%.4f lon=%.4f url=%s",
+                    exc.response.status_code,
+                    lat,
+                    lon,
+                    str(exc.request.url),
+                )
+                raise
+            except Exception:
+                logger.exception(
+                    "openmeteo_archive_fetch_error lat=%.4f lon=%.4f url=%s",
+                    lat,
+                    lon,
+                    url,
+                )
+                raise
             payload = resp.json()
         daily = payload.get("daily") or {}
         times = daily.get("time") or []
