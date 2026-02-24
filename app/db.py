@@ -64,6 +64,29 @@ def _run_sqlite_compat_migrations() -> None:
                 "CREATE INDEX ix_forecasthourly_location_key_valid_time ON forecasthourly (location_key, valid_time)"
             )
 
+        # Legacy installs may have duplicate userprofile rows per telegram_id.
+        # Keep the newest row (highest id) and remove older duplicates.
+        conn.exec_driver_sql(
+            """
+            DELETE FROM userprofile
+            WHERE id IN (
+                SELECT id FROM (
+                    SELECT id,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY telegram_id
+                               ORDER BY created_at DESC, id DESC
+                           ) AS rn
+                    FROM userprofile
+                )
+                WHERE rn > 1
+            )
+            """
+        )
+
+        # Backfill and enforce uniqueness on telegram_id for migrated sqlite databases.
+        if not _index_exists(conn, "ux_userprofile_telegram_id"):
+            conn.exec_driver_sql("CREATE UNIQUE INDEX ux_userprofile_telegram_id ON userprofile (telegram_id)")
+
         conn.exec_driver_sql(
             "UPDATE userprofile SET weather_provider='smhi' WHERE weather_provider IS NULL OR weather_provider=''"
         )

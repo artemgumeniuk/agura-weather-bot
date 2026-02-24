@@ -264,4 +264,8 @@ def next_24h_rows(
 
 
 def get_user_by_telegram(session: Session, telegram_id: int) -> UserProfile | None:
-    return session.exec(select(UserProfile).where(UserProfile.telegram_id == telegram_id)).first()
+    return session.exec(
+        select(UserProfile)
+        .where(UserProfile.telegram_id == telegram_id)
+        .order_by(UserProfile.created_at.desc(), UserProfile.id.desc())
+    ).first()

@@ -56,6 +56,14 @@ def parse_outfit_args(args: list[str]) -> tuple[int, str]:
     return mins, activity
 
 
+def latest_user_for_telegram(session: Session, telegram_id: int) -> UserProfile | None:
+    return session.exec(
+        select(UserProfile)
+        .where(UserProfile.telegram_id == telegram_id)
+        .order_by(UserProfile.created_at.desc(), UserProfile.id.desc())
+    ).first()
+
+
 def build_start_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [[InlineKeyboardButton("Set city", callback_data=f"{NAV_CALLBACK_PREFIX}setcity")]]
@@ -200,9 +208,7 @@ def build_bot() -> BotRuntime | None:
 
     async def send_now_summary(reply_fn, telegram_id: int):
         with Session(engine) as session:
-            user = session.exec(
-                select(UserProfile).where(UserProfile.telegram_id == telegram_id)
-            ).first()
+            user = latest_user_for_telegram(session, telegram_id)
             if user is None:
                 await reply_fn("Set city first with /setcity")
                 return
@@ -212,9 +218,7 @@ def build_bot() -> BotRuntime | None:
 
     async def send_stats_summary(reply_fn, telegram_id: int):
         with Session(engine) as session:
-            user = session.exec(
-                select(UserProfile).where(UserProfile.telegram_id == telegram_id)
-            ).first()
+            user = latest_user_for_telegram(session, telegram_id)
             if user is None:
                 await reply_fn("Set city first with /setcity")
                 return
@@ -224,9 +228,7 @@ def build_bot() -> BotRuntime | None:
 
     async def send_forecast_digest(reply_fn, telegram_id: int, days: int):
         with Session(engine) as session:
-            user = session.exec(
-                select(UserProfile).where(UserProfile.telegram_id == telegram_id)
-            ).first()
+            user = latest_user_for_telegram(session, telegram_id)
             if user is None:
                 await reply_fn("Set city first with /setcity")
                 return
@@ -381,9 +383,7 @@ def build_bot() -> BotRuntime | None:
 
         try:
             with Session(engine) as session:
-                user = session.exec(
-                    select(UserProfile).where(UserProfile.telegram_id == update.effective_user.id)
-                ).first()
+                user = latest_user_for_telegram(session, update.effective_user.id)
                 if user is None:
                     await update.message.reply_text("Set city first with /setcity")
                     return
@@ -477,9 +477,7 @@ def build_bot() -> BotRuntime | None:
 
         try:
             with Session(engine) as session:
-                user = session.exec(
-                    select(UserProfile).where(UserProfile.telegram_id == update.effective_user.id)
-                ).first()
+                user = latest_user_for_telegram(session, update.effective_user.id)
                 if user is None:
                     await query.edit_message_text("Set city first with /setcity")
                     return
@@ -523,9 +521,7 @@ def build_bot() -> BotRuntime | None:
 
         try:
             with Session(engine) as session:
-                user = session.exec(
-                    select(UserProfile).where(UserProfile.telegram_id == update.effective_user.id)
-                ).first()
+                user = latest_user_for_telegram(session, update.effective_user.id)
                 if user is None:
                     await query.edit_message_text("Set city first with /setcity")
                     return

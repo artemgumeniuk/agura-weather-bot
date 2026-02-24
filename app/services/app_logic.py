@@ -80,6 +80,32 @@ class AppLogic:
         self.geocoder = GeocoderClient()
         self.obs_client = SmhiObsClient()
 
+    @staticmethod
+    def _latest_user_profile(session: Session, telegram_id: int) -> UserProfile | None:
+        return session.exec(
+            select(UserProfile)
+            .where(UserProfile.telegram_id == telegram_id)
+            .order_by(UserProfile.created_at.desc(), UserProfile.id.desc())
+        ).first()
+
+    @staticmethod
+    def _dedupe_user_profiles(session: Session, telegram_id: int) -> UserProfile | None:
+        rows = list(
+            session.exec(
+                select(UserProfile)
+                .where(UserProfile.telegram_id == telegram_id)
+                .order_by(UserProfile.created_at.desc(), UserProfile.id.desc())
+            ).all()
+        )
+        if not rows:
+            return None
+        keep = rows[0]
+        for stale in rows[1:]:
+            session.delete(stale)
+        if len(rows) > 1:
+            session.commit()
+        return keep
+
     async def set_city(self, session: Session, telegram_id: int, city: str) -> UserProfile:
         if type(self.geocoder).__name__ != "GeocoderClient" or type(self.obs_client).__name__ != "SmhiObsClient":
             lat, lon, display_name = await self.geocoder.geocode_city(city)
@@ -104,7 +130,7 @@ class AppLogic:
         if station_id_value is None:
             station_id_value = _synthetic_station_id(resolved.lat, resolved.lon)
 
-        user = session.exec(select(UserProfile).where(UserProfile.telegram_id == telegram_id)).first()
+        user = self._dedupe_user_profiles(session, telegram_id)
         if user is None:
             user = UserProfile(
                 telegram_id=telegram_id,
@@ -223,7 +249,7 @@ class AppLogic:
         minutes_outside: int,
         context: dict | None,
     ) -> ComfortRating:
-        user = session.exec(select(UserProfile).where(UserProfile.telegram_id == telegram_id)).first()
+        user = self._latest_user_profile(session, telegram_id)
         if user is None:
             raise ValueError("Set city first with /setcity")
         row = closest_forecast_row(session, user.location_key, lat=user.lat, lon=user.lon)
@@ -259,7 +285,7 @@ class AppLogic:
     ) -> ComfortPredictResponse:
         from app.services.comfort import ComfortModelService
 
-        user = session.exec(select(UserProfile).where(UserProfile.telegram_id == telegram_id)).first()
+        user = self._latest_user_profile(session, telegram_id)
         if user is None:
             raise ValueError("Set city first with /setcity")
         row = closest_forecast_row(session, user.location_key, lat=user.lat, lon=user.lon)
