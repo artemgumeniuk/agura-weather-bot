@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ title }}</title>
-  <link rel="icon" href="{{ favicon_url or '/static/agura-frog-logo.jpg' }}" />
-  <link rel="apple-touch-icon" href="{{ favicon_url or '/static/agura-frog-logo.jpg' }}" />
+  <link rel="icon" href="{{ favicon_url or 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext y=%2252%22 font-size=%2252%22%3E%F0%9F%90%B8%3C/text%3E%3C/svg%3E' }}" />
+  <link rel="apple-touch-icon" href="{{ favicon_url or 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext y=%2252%22 font-size=%2252%22%3E%F0%9F%90%B8%3C/text%3E%3C/svg%3E' }}" />
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -46,11 +46,11 @@
     }
 
     .hero {
-      background: linear-gradient(135deg, rgba(12, 140, 233, 0.11), rgba(12, 140, 233, 0.03));
-      border: 1px solid #cbe0f7;
-      border-radius: 22px;
-      box-shadow: var(--shadow);
-      padding: 22px;
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      padding: 4px 0 10px;
     }
 
     .hero-head {
@@ -129,6 +129,13 @@
 
     .subtle {
       background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+
+    .card-flat {
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      padding: 6px 0 0;
     }
 
     .card-head {
@@ -256,6 +263,28 @@
       margin-top: 5px;
     }
 
+    .sources-inline {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .sources-inline a {
+      color: #0c4c8f;
+      font-weight: 700;
+      text-decoration: none;
+      border-bottom: 1px solid #9fc3ea;
+    }
+
+    .sources-inline a:hover {
+      color: #073f79;
+      border-bottom-color: #6ea7de;
+    }
+
     .field {
       flex: 1 1 320px;
       min-width: 220px;
@@ -319,10 +348,9 @@
       </div>
     </section>
 
-    <section class="card subtle">
+    <section class="card card-flat">
       <div class="card-head">
         <h3 class="card-title">Telegram</h3>
-        <span class="chip">Optional</span>
       </div>
       <p class="muted" style="margin-bottom: 10px;">Use Telegram for bot commands and daily push messages.</p>
       {% if telegram_bot_url %}
@@ -332,14 +360,14 @@
       {% endif %}
     </section>
 
-    <section class="card subtle">
+    <section class="card card-flat">
       <div class="card-head">
         <h3 class="card-title">Sources</h3>
       </div>
-      <ul class="panel-list">
-        <li>Open-Meteo APIs for global current conditions, forecast, and historical baselines.</li>
-        <li>SMHI Open Data for Sweden-focused weather observations and forecast fallback.</li>
-        <li>Nominatim/OpenStreetMap geocoding to resolve city names to coordinates.</li>
+      <ul class="sources-inline">
+        <li><a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a></li>
+        <li><a href="https://opendata.smhi.se/" target="_blank" rel="noopener noreferrer">SMHI</a></li>
+        <li><a href="https://nominatim.org/" target="_blank" rel="noopener noreferrer">Nominatim/OSM</a></li>
       </ul>
     </section>
   </main>

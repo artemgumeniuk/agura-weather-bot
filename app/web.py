@@ -82,9 +82,13 @@ def _render_error(
 @router.get("/", response_class=HTMLResponse)
 async def web_app(request: Request, session: Session = Depends(get_session)):
     logo_url = (settings.app_logo_url or "").strip() or "/static/agura-frog-logo.jpg"
-    favicon_url = logo_url
+    favicon_url = (settings.app_logo_url or "").strip() or (
+        "data:image/svg+xml,"
+        "%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E"
+        "%3Ctext y=%2252%22 font-size=%2252%22%3E%F0%9F%90%B8%3C/text%3E%3C/svg%3E"
+    )
     context: dict = {
-        "title": "Weather Web Bot",
+        "title": "🐸 Agura Weather Bot",
         "telegram_bot_url": await _telegram_bot_url(),
         "logo_url": logo_url,
         "favicon_url": favicon_url,
