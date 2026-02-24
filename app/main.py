@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
     bot_runtime = None
     scheduler_runtime = None
     if not stateless_mode:
-        from app.bot import build_bot
+        from app.bot import BOT_COMMANDS, build_bot
         from app.scheduler import SchedulerRuntime
 
         bot_runtime = build_bot()
@@ -37,6 +37,7 @@ async def lifespan(app: FastAPI):
 
     if bot_runtime is not None and scheduler_runtime is not None:
         await bot_runtime.application.initialize()
+        await bot_runtime.application.bot.set_my_commands(BOT_COMMANDS)
         await bot_runtime.application.start()
         await bot_runtime.application.updater.start_polling()
 

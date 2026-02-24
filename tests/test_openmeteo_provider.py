@@ -37,3 +37,50 @@ async def test_fetch_daily_history_uses_archive_base_url(monkeypatch):
     assert len(rows) == 1
     assert rows[0].date.isoformat() == "2026-02-20"
     assert rows[0].ws_mean == 5.0  # converted to m/s
+
+
+@respx.mock
+async def test_geocode_city_retries_with_base_name_when_display_name_fails():
+    route_full = respx.get(
+        "https://geocoding-api.open-meteo.com/v1/search",
+        params={
+            "name": "Gothenburg, Västra Götaland, Sweden",
+            "count": "1",
+            "language": "en",
+            "format": "json",
+        },
+    ).mock(return_value=Response(200, json={"results": []}))
+    route_base = respx.get(
+        "https://geocoding-api.open-meteo.com/v1/search",
+        params={
+            "name": "Gothenburg",
+            "count": "1",
+            "language": "en",
+            "format": "json",
+        },
+    ).mock(
+        return_value=Response(
+            200,
+            json={
+                "results": [
+                    {
+                        "name": "Gothenburg",
+                        "latitude": 57.7072,
+                        "longitude": 11.9670,
+                        "country_code": "SE",
+                        "country": "Sweden",
+                        "admin1": "Vastra Gotaland",
+                        "timezone": "Europe/Stockholm",
+                    }
+                ]
+            },
+        )
+    )
+
+    provider = OpenMeteoProvider()
+    result = await provider.geocode_city("Gothenburg, Västra Götaland, Sweden")
+
+    assert route_full.called
+    assert route_base.called
+    assert result.lat == 57.7072
+    assert result.lon == 11.967

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -29,6 +29,17 @@ OUTFIT_CALLBACK_PREFIX = "outfit:"
 NAV_CALLBACK_PREFIX = "nav:"
 FORECAST_CALLBACK_PREFIX = "forecast:"
 RATE_CALLBACK_PREFIX = "rate:"
+
+BOT_COMMANDS = [
+    BotCommand("start", "Start the weather bot and see quick help"),
+    BotCommand("help", "Show all available commands"),
+    BotCommand("setcity", "Set your city, example: /setcity Stockholm"),
+    BotCommand("now", "Show current weather summary"),
+    BotCommand("forecast", "Show forecast (1 or 3 days)"),
+    BotCommand("outfit", "Outfit advice, example: /outfit 60 walking"),
+    BotCommand("rate", "Rate your comfort 1-5, example: /rate 4"),
+    BotCommand("comfort", "Show your personalized comfort prediction"),
+]
 
 
 def parse_outfit_args(args: list[str]) -> tuple[int, str]:
@@ -129,7 +140,11 @@ def build_bot() -> BotRuntime | None:
         return None
 
     logic = AppLogic()
-    app = Application.builder().token(settings.telegram_bot_token).build()
+
+    async def post_init(application: Application):
+        await application.bot.set_my_commands(BOT_COMMANDS)
+
+    app = Application.builder().token(settings.telegram_bot_token).post_init(post_init).build()
 
     def unauthorized(update: Update) -> bool:
         allowed = settings.telegram_allowed_user_id_int

@@ -14,14 +14,22 @@ logger = logging.getLogger(__name__)
 class OpenMeteoProvider:
     provider_name = "openmeteo"
 
-    async def geocode_city(self, city: str) -> GeocodeResult:
+    async def _search_city(self, city: str) -> dict:
         url = f"{settings.openmeteo_geo_base_url}/v1/search"
         params = {"name": city, "count": 1, "language": "en", "format": "json"}
         async with httpx.AsyncClient(timeout=20) as client:
             resp = await client.get(url, params=params)
             resp.raise_for_status()
-            payload = resp.json()
+            return resp.json()
+
+    async def geocode_city(self, city: str) -> GeocodeResult:
+        payload = await self._search_city(city)
         results = payload.get("results") or []
+        if not results and "," in city:
+            fallback_city = city.split(",", 1)[0].strip()
+            if fallback_city and fallback_city != city:
+                payload = await self._search_city(fallback_city)
+                results = payload.get("results") or []
         if not results:
             raise ValueError(f"No geocoding result for city: {city}")
         first = results[0]
