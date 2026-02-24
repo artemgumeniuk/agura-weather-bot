@@ -387,6 +387,13 @@
       if (el.dataset.orig) el.textContent = el.dataset.orig;
       el.disabled = false;
     });
+
+    document.body.addEventListener("htmx:responseError", (e) => {
+      const xhr = e.detail && e.detail.xhr;
+      const target = e.detail && e.detail.target;
+      if (!xhr || !xhr.responseText || !target) return;
+      target.innerHTML = xhr.responseText;
+    });
   </script>
 </body>
 </html>

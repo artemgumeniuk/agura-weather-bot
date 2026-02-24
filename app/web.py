@@ -88,7 +88,7 @@ async def web_app(request: Request, session: Session = Depends(get_session)):
         "%3Ctext y=%2252%22 font-size=%2252%22%3E%F0%9F%90%B8%3C/text%3E%3C/svg%3E"
     )
     context: dict = {
-        "title": "🐸 Agura Weather Bot",
+        "title": "Agura Weather Bot",
         "telegram_bot_url": await _telegram_bot_url(),
         "logo_url": logo_url,
         "favicon_url": favicon_url,
